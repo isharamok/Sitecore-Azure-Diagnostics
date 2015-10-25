@@ -1,6 +1,6 @@
 # Sitecore Azure Diagnostics
 
-The module outputs Sitecore Log statements to Microsoft Azure Storage Service using the Block Blobs.
+Sitecore Azure Diagnostics is Sitecore CMS extension to output Sitecore Log statements to Microsoft Azure Storage Service using blobs. It includes two components. One component for Sitecore platform, and the other one for Sitecore Azure module.   
 
 **Features:**
 + Append regular, WebDAV, Search, Crawling and Publishing Sitecore diagnostics
@@ -11,7 +11,3 @@ The module outputs Sitecore Log statements to Microsoft Azure Storage Service us
 + Reuse the same Azure Storage Service that the [Sitecore Azure](https://dev.sitecore.net/en/Downloads/Sitecore_Azure/80/Sitecore_Azure_80.aspx) module automatically creates during deployment
 + Clean up out-of-date blobs using Sitecore Agent
 + Support Sitecore Log Viewer application to open, download and deleted blobs.
-
-**Requirements:**
-+ Sitecore CMS and DMS 7.2 rev. 140228 (7.2 Initial Release) or newer
-+ Sitecore Azure 7.2 rev. 140411 or newer
