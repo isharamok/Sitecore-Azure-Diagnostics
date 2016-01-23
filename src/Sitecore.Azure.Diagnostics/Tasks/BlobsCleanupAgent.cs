@@ -55,8 +55,8 @@ namespace Sitecore.Azure.Diagnostics.Tasks
       }
 
       this.LogInfo("Scheduling.BlobsCleanupAgent: Done.");
-      
-      TaskCounters.FileCleanups.Increment();
+
+      JobsCount.TasksFileCleanups.Increment();
     }
 
     /// <summary>

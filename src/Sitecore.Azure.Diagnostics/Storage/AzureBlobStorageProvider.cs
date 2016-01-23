@@ -12,6 +12,8 @@ using Sitecore.Diagnostics;
 
 namespace Sitecore.Azure.Diagnostics.Storage
 {
+  using System;
+
   /// <summary>
   /// Represent the provider to configure and execute requests against the Azure Blob Storage Service.
   /// </summary>
@@ -187,6 +189,15 @@ namespace Sitecore.Azure.Diagnostics.Storage
         }
       }
     }
+    protected BlobType BlobType
+    {
+      get
+      {
+        string type = Configuration.Settings.GetSetting("Azure.Storage.BlobType", "AppendBlob");
+        BlobType blobType = (BlobType) Enum.Parse(typeof(BlobType), type, true);
+        return blobType == BlobType.Unspecified ? BlobType.AppendBlob : blobType;
+      }
+    }
     
     #endregion
 
@@ -243,10 +254,46 @@ namespace Sitecore.Azure.Diagnostics.Storage
 
       // Build blob name for a Role Environment using the following format: {DeploymentId}/{RoleInstanceId}/{BlobName}.
       blobName = string.IsNullOrEmpty(webRoleRelativeAddress) ? blobName : string.Format("{0}/{1}", webRoleRelativeAddress, blobName);
-      
-      ICloudBlob blob = this.CloudBlobContainer.Exists() ? 
-        this.CloudBlobContainer.GetBlockBlobReference(blobName) : 
-        this.GetContainer(this.ContainerName).GetBlockBlobReference(blobName);
+
+      ICloudBlob blob = this.GetBlobTypeReference(blobName);
+
+      return blob;
+    }
+
+    /// <summary>
+    /// Creates a cloud blob based on Azure.Storage.BlobType setting.
+    /// </summary>
+    /// <param name="blobName">Name of the blob</param>
+    /// <returns>The specified cloud blob.</returns>
+    public virtual ICloudBlob GetBlobTypeReference(string blobName)
+    {
+      ICloudBlob blob = this.CloudBlobContainer.Exists() ?
+        //this.CloudBlobContainer.GetBlockBlobReference(blobName) : 
+        this.CloudBlobContainer.GetAppendBlobReference(blobName) :
+        this.GetContainer(this.ContainerName).GetAppendBlobReference(blobName);
+      switch (BlobType)
+      {
+        case BlobType.AppendBlob:
+          blob = this.CloudBlobContainer.Exists() ?
+            this.CloudBlobContainer.GetAppendBlobReference(blobName) :
+            this.GetContainer(this.ContainerName).GetAppendBlobReference(blobName);
+          break;
+        case BlobType.BlockBlob:
+          blob = this.CloudBlobContainer.Exists() ?
+            this.CloudBlobContainer.GetBlockBlobReference(blobName) :
+            this.GetContainer(this.ContainerName).GetBlockBlobReference(blobName);
+          break;
+        case BlobType.PageBlob:
+          blob = this.CloudBlobContainer.Exists() ?
+            this.CloudBlobContainer.GetPageBlobReference(blobName) :
+            this.GetContainer(this.ContainerName).GetPageBlobReference(blobName);
+          break;
+        default:
+          blob = this.CloudBlobContainer.Exists() ?
+            this.CloudBlobContainer.GetAppendBlobReference(blobName) :
+            this.GetContainer(this.ContainerName).GetAppendBlobReference(blobName);
+          break;
+      }
 
       return blob;
     }

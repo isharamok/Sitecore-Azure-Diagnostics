@@ -33,9 +33,9 @@ namespace Sitecore.Azure.Diagnostics.Appenders
     public DateTime CurrentDate { get; protected set; }
 
     /// <summary>
-    /// The cloud block BLOB for storing log entries.
+    /// The cloud BLOB for storing log entries.
     /// </summary>
-    private ICloudBlob cloudBlockBlob;
+    private ICloudBlob cloudBlob;
 
     #endregion
 
@@ -45,21 +45,21 @@ namespace Sitecore.Azure.Diagnostics.Appenders
     /// Gets the BLOB.
     /// </summary>
     /// <value>
-    /// The cloud block BLOB.
+    /// The cloud BLOB.
     /// </value>
     private ICloudBlob Blob
     {
       get
       {
         // Create a new blob if this is the first time it is used.
-        if (this.cloudBlockBlob == null)
+        if (this.cloudBlob == null)
         {
-          this.cloudBlockBlob = this.GetNewBlob();
+          this.cloudBlob = this.GetNewBlob();
         }
         // Recreate a blob if a container is no longer exists.
-        else if (!this.cloudBlockBlob.Container.Exists())
+        else if (!this.cloudBlob.Container.Exists())
         {
-          this.cloudBlockBlob = LogStorageManager.GetBlob(this.cloudBlockBlob.Name);
+          this.cloudBlob = LogStorageManager.GetBlob(this.cloudBlob.Name);
         }
         // Create a new blob if the current shouldn't be used.
         else
@@ -69,11 +69,11 @@ namespace Sitecore.Azure.Diagnostics.Appenders
 
           if (needNewBlob)
           {
-            this.cloudBlockBlob = this.GetNewBlob();
+            this.cloudBlob = this.GetNewBlob();
           }
         }
 
-        return this.cloudBlockBlob;
+        return this.cloudBlob;
       }
     }
 
@@ -102,10 +102,28 @@ namespace Sitecore.Azure.Diagnostics.Appenders
     {
       Sitecore.Diagnostics.Assert.ArgumentNotNull(loggingEvent, "loggingEvent");
 
-      var blob = this.Blob as CloudBlockBlob;
+      //var blob = this.Blob as CloudBlockBlob;
       string message = this.RenderLoggingEvent(loggingEvent);
 
-      this.AddMessageToBlock(blob, message);
+      //this.AddMessageToBlock(blob, message);
+      this.AddMessageToBlob(this.Blob, message);
+    }
+    protected virtual void AddMessageToBlob(ICloudBlob blob, string message)
+    {
+      if (blob is CloudBlockBlob)
+      {
+        var blockBlob = blob as CloudBlockBlob;
+        AddMessageToBlock(blockBlob, message);
+      }
+      else if (blob is CloudAppendBlob)
+      {
+        var appendBlob = blob as CloudAppendBlob;
+        AddMessageToAppend(appendBlob, message);
+      }
+      else if (blob is CloudPageBlob)
+      {
+        var pageBlob = blob as CloudPageBlob;
+      }
     }
 
     /// <summary>
@@ -134,12 +152,37 @@ namespace Sitecore.Azure.Diagnostics.Appenders
         blob.PutBlockList(blockIds);
       }
     }
+    /// <summary>
+    /// Adds the diagnostic message to append blob.
+    /// </summary>
+    /// <param name="blob">The cloud append blob.</param>
+    /// <param name="message">The message.</param>
+    protected virtual void AddMessageToAppend(CloudAppendBlob blob, string message)
+    {
+      Sitecore.Diagnostics.Assert.ArgumentNotNull(blob, "blob");
+      Sitecore.Diagnostics.Assert.ArgumentNotNull(message, "message");
+      using (var blockData = new MemoryStream(LogStorageManager.DefaultTextEncoding.GetBytes(message), false))
+      {
+        blob.AppendBlock(blockData);
+      }
+    }
+    /// <summary>
+    /// Adds the diagnostic message to page blob.
+    /// </summary>
+    /// <param name="blob">The cloud page blob.</param>
+    /// <param name="message">The message.</param>
+    protected virtual void AddMessageToPage(CloudPageBlob blob, string message)
+    {
+      Sitecore.Diagnostics.Assert.ArgumentNotNull(blob, "blob");
+      Sitecore.Diagnostics.Assert.ArgumentNotNull(message, "message");
+      throw new NotImplementedException("AddMessageToPage is not implemented.");
+    }
 
     /// <summary>
     /// Gets the new cloud blob for diagnostic messages.
     /// </summary>
     /// <returns>
-    /// The cloud block blob.
+    /// The cloud blob.
     /// </returns>
     protected virtual ICloudBlob GetNewBlob()
     {
