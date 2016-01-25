@@ -3,12 +3,14 @@ using System.Collections.Specialized;
 using System.Configuration.Provider;
 using System.Linq;
 using System.Text;
-using Microsoft.WindowsAzure;
+using Microsoft.Azure;
 using Microsoft.WindowsAzure.ServiceRuntime;
 using Microsoft.WindowsAzure.Storage;
 using Microsoft.WindowsAzure.Storage.Blob;
 using Sitecore.Azure.Diagnostics.Storage.RetryPolicies;
+using Sitecore.Data.Items;
 using Sitecore.Diagnostics;
+using Sitecore.StringExtensions;
 
 namespace Sitecore.Azure.Diagnostics.Storage
 {
@@ -30,6 +32,11 @@ namespace Sitecore.Azure.Diagnostics.Storage
     /// The application setting name that contains the connection string to Azure Storage.
     /// </summary>
     private const string AppSettingName = "Azure.Storage.ConnectionString.AppSettingName";
+
+    /// <summary>
+    /// Azure Storage template ID.
+    /// </summary>
+    private const string AzureStorageTemplateID = "{009A3ACC-058A-4418-8662-0837D1F1FDFF}";
 
     /// <summary>
     /// The cloud BLOB client.
@@ -70,8 +77,8 @@ namespace Sitecore.Azure.Diagnostics.Storage
     /// </summary>
     public AzureBlobStorageProvider()
     {
-      string appSetting = Configuration.Settings.GetSetting(AppSettingName);
-      string storageConnectionString = RoleEnvironment.IsAvailable ? RoleEnvironment.GetConfigurationSettingValue(appSetting) : CloudConfigurationManager.GetSetting(appSetting);
+      string appSetting = Sitecore.Configuration.Settings.GetSetting(AppSettingName);
+      string storageConnectionString = RoleEnvironment.IsAvailable ? GetWebRoleStorageConnectionString(RoleEnvironment.GetConfigurationSettingValue("StorageName")) : CloudConfigurationManager.GetSetting(appSetting);
 
       // Retrieve storage account from connection string.
       this.StorageAccount = CloudStorageAccount.Parse(storageConnectionString);
@@ -417,6 +424,17 @@ namespace Sitecore.Azure.Diagnostics.Storage
       return webRoleRelativeAddress;
     }
 
+    protected string GetWebRoleStorageConnectionString(string storageName)
+    {
+      var storageItem = GetAzureStorageItem(storageName);
+      var protocol = storageItem["Protocol"];
+      var serviceName = storageItem["Service Name"];
+      var accessKey = storageItem["Primary Access Key"];
+      var endpoint = storageItem["Endpoint"];
+      string connectionString = "DefaultEndpointsProtocol={0};AccountName={1};AccountKey={2};EndpointSuffix={3};".FormatWith(new object[] { protocol.StartsWith("https") ? "https" : "http", serviceName, accessKey, endpoint });
+      return connectionString;
+    }
+
     #endregion
 
     #region Private Methods
@@ -457,6 +475,14 @@ namespace Sitecore.Azure.Diagnostics.Storage
       }
 
       return sourceContainerName;
+    }
+
+    private Item GetAzureStorageItem(string storageName)
+    {
+      var database = Context.ContentDatabase ?? Context.Database;
+      Item item = database.SelectSingleItem("fast:/sitecore/system/Modules/Azure//*[@@templateid='{0}'  and @#Service Name#='{1}']".FormatWith(new object[] { AzureStorageTemplateID, storageName }));
+      return item;
+
     }
 
     #endregion
